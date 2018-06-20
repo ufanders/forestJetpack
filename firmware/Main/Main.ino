@@ -17,7 +17,7 @@
 
 bool gReverseDirection = false;
 
-CRGB leds[NUM_LEDS];
+CRGB leds[NUM_LEDS*2]; //we hack in another strip worth of data.
 
 // Fire2012 with programmable Color Palette
 //
@@ -46,17 +46,37 @@ CRGB leds[NUM_LEDS];
 // The dynamic palette shows how you can change the basic 'hue' of the
 // color palette every time through the loop, producing "rainbow fire".
 
-CRGBPalette16 gPal;
+byte coolingValue;
+byte sparkingValue;
+
+CRGBPalette16 gPal0;
+CRGBPalette16 gPal1;
+CRGBPalette16 gPal2;
+CRGBPalette16 gPal3;
+CRGBPalette16* gPalCurrent;
+
+//======== timer stuff
+byte button1 = A0;
+byte button2 = A1;
+Debounce Button1(button1); // Button1 debounced, default 50ms delay.
+Debounce Button2(button2); // Button2 debounced, default 50ms delay.
+
+//======== control stuff
+byte en_blower = A2;
+byte en_vape = A3;
+byte colorMode = 0;
+byte smokeFlag = 0;
 uint32_t timerTicksBase, timerTicks1, timerTicks2;
 
 void setup() {
-  delay(3000); // sanity delay
+  delay(1000); // sanity delay
 
   timerTicksBase = 0;
   timerTicks1 = 0;
   timerTicks2 = 0;
   
-  FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  //we hack in twice as many slots for LEDs given we have 2 strips connected in series.
+  FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, (NUM_LEDS*2)).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness( BRIGHTNESS );
 
   // This first palette is the basic 'black body radiation' colors,
@@ -65,17 +85,24 @@ void setup() {
   
   // These are other ways to set up the color palette for the 'fire'.
   // First, a gradient from black to red to yellow to white -- similar to HeatColors_p
-  gPal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::Yellow, CRGB::White);
+  gPal1 = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::Yellow, CRGB::White);
   
   // Second, this palette is like the heat colors, but blue/aqua instead of red/yellow
-  //   gPal = CRGBPalette16( CRGB::Black, CRGB::Blue, CRGB::Aqua,  CRGB::White);
+  gPal2 = CRGBPalette16( CRGB::Black, CRGB::Pink, CRGB::Aqua,  CRGB::White);
   
   // Third, here's a simpler, three-step gradient, from black to red to white
   //   gPal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::White);
 
-  pinMode(9, OUTPUT); //heartbeat indicator.
+  gPal0 = CRGBPalette16( CRGB::Black, CRGB::White);
 
-  
+  coolingValue = 55;
+  sparkingValue = 120;
+
+  //pinMode(9, OUTPUT); //heartbeat indicator.
+  pinMode(button1, INPUT_PULLUP); // Watch for the PULLUP
+  pinMode(button2, INPUT_PULLUP); // Watch for the PULLUP
+  pinMode(en_blower, OUTPUT);
+  pinMode(en_vape, OUTPUT);
   
   // initialize timer1 
   noInterrupts();           // disable all interrupts
@@ -92,7 +119,7 @@ void setup() {
 
 ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
 {
-  //TODO: top half.
+  //top half of ISR.
   
   timerTicksBase++;
 
@@ -108,9 +135,48 @@ ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
 
 void loop()
 {
-  //TODO: bottom half.
 
-  if(timerTicks1 == 1)
+  //TODO: read pin states.
+  if(!Button1.read())
+  {
+    //LED mode button pushed.
+    
+    colorMode++;
+    if(colorMode > 3) colorMode = 0;
+
+    switch(colorMode)
+    {
+      case 0: //LEDs off.
+      coolingValue = 55;
+      sparkingValue = 120;
+      break;
+
+      case 1: //Fire.
+      coolingValue = 55;
+      sparkingValue = 120;
+      break;
+
+      case 2: //MDMA fire.
+      coolingValue = 35;
+      sparkingValue = 160;
+      break;
+
+      case 3: //FREAK OUT
+      coolingValue = 55;
+      sparkingValue = 120;
+      break;
+    }
+
+  }
+
+  if(!Button2.read())
+  {
+    //smoke mode button pushed.
+  }
+  
+  //bottom half of ISR.
+
+  if((timerTicks1 == 1) && colorMode)
   {
     //TODO: draw video frame.
     
@@ -122,11 +188,15 @@ void loop()
     // The palette is a gradient from black, to a dark color based on the hue,
     // to a light color based on the hue, to white.
     //
-    //   static uint8_t hue = 0;
-    //   hue++;
-    //   CRGB darkcolor  = CHSV(hue,255,192); // pure hue, three-quarters brightness
-    //   CRGB lightcolor = CHSV(hue,128,255); // half 'whitened', full brightness
-    //   gPal = CRGBPalette16( CRGB::Black, darkcolor, lightcolor, CRGB::White);
+
+    if(colorMode == 3)
+    {
+      static uint8_t hue = 0;
+      hue++;
+      CRGB darkcolor  = CHSV(hue,255,192); // pure hue, three-quarters brightness
+      CRGB lightcolor = CHSV(hue,128,255); // half 'whitened', full brightness
+      gPal3 = CRGBPalette16( CRGB::Black, darkcolor, lightcolor, CRGB::White);
+    }
   
     Fire2012WithPalette(); // run simulation frame, using palette colors
     
@@ -191,7 +261,7 @@ void Fire2012WithPalette()
 
   // Step 1.  Cool down every cell a little
     for( int i = 0; i < NUM_LEDS; i++) {
-      heat[i] = qsub8( heat[i],  random8(0, ((COOLING * 10) / NUM_LEDS) + 2));
+      heat[i] = qsub8( heat[i],  random8(0, ((coolingValue * 10) / NUM_LEDS) + 2));
     }
   
     // Step 2.  Heat from each cell drifts 'up' and diffuses a little
@@ -200,7 +270,7 @@ void Fire2012WithPalette()
     }
     
     // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
-    if( random8() < SPARKING ) {
+    if( random8() < sparkingValue ) {
       int y = random8(7);
       heat[y] = qadd8( heat[y], random8(160,255) );
     }
@@ -210,14 +280,37 @@ void Fire2012WithPalette()
       // Scale the heat value from 0-255 down to 0-240
       // for best results with color palettes.
       byte colorindex = scale8( heat[j], 240);
-      CRGB color = ColorFromPalette( gPal, colorindex);
+
+      CRGB color;
+
+      switch(colorMode)
+      {
+        case 0: //all black.
+          color = ColorFromPalette( gPal0, colorindex);
+        break;
+
+        case 1: //fire.
+          color = ColorFromPalette( gPal1, colorindex);
+        break;
+
+        case 2: //MDMA fire?
+          color = ColorFromPalette( gPal2, colorindex);
+        break;
+
+        case 3: //FREAK OUT
+          color = ColorFromPalette( gPal3, colorindex);
+        break;
+      }
+      
       int pixelnumber;
       if( gReverseDirection ) {
         pixelnumber = (NUM_LEDS-1) - j;
       } else {
         pixelnumber = j;
       }
+      
       leds[pixelnumber] = color;
+      leds[pixelnumber+NUM_LEDS] = color; //we hack in a copy of the first strip data into the second strip.
     }
 }
 
