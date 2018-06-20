@@ -1,11 +1,16 @@
+#include <Event.h>
+#include <Timer.h>
+
+#include <Debounce.h>
+
 #include <FastLED.h>
 
 #define CHIPSET     DOTSTAR
-#define DATA_PIN     5
-#define CLOCK_PIN     5
-#define COLOR_ORDER RGB
+#define DATA_PIN     16
+#define CLOCK_PIN     15
+#define COLOR_ORDER BGR
 #define SPI_SPEED     5
-#define NUM_LEDS    30
+#define NUM_LEDS    60
 
 #define BRIGHTNESS  200
 #define FRAMES_PER_SECOND 60
@@ -56,11 +61,11 @@ void setup() {
 
   // This first palette is the basic 'black body radiation' colors,
   // which run from black to red to bright yellow to white.
-  gPal = HeatColors_p;
+  //gPal = HeatColors_p;
   
   // These are other ways to set up the color palette for the 'fire'.
   // First, a gradient from black to red to yellow to white -- similar to HeatColors_p
-  //   gPal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::Yellow, CRGB::White);
+  gPal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::Yellow, CRGB::White);
   
   // Second, this palette is like the heat colors, but blue/aqua instead of red/yellow
   //   gPal = CRGBPalette16( CRGB::Black, CRGB::Blue, CRGB::Aqua,  CRGB::White);
@@ -69,6 +74,8 @@ void setup() {
   //   gPal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::White);
 
   pinMode(9, OUTPUT); //heartbeat indicator.
+
+  
   
   // initialize timer1 
   noInterrupts();           // disable all interrupts
@@ -76,7 +83,7 @@ void setup() {
   TCCR1B = 0;
   TCNT1  = 0;
 
-  OCR1A = 31250;            // compare match register 16MHz/256/2Hz
+  OCR1A = 1092; //60Hz //31250;            // compare match register 16MHz/256/2Hz
   TCCR1B |= (1 << WGM12);   // CTC mode
   TCCR1B |= (1 << CS12);    // 256 prescaler 
   TIMSK1 |= (1 << OCIE1A);  // enable timer compare interrupt
@@ -89,21 +96,21 @@ ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
   
   timerTicksBase++;
 
-  if(timerTicksBase % 100)
+  if(1) //timerTicksBase % 100)
   {
     timerTicks1++;
   }
 
   if(timerTicksBase == 100) timerTicksBase = 0; //reset timebase.
   
-  digitalWrite(9, digitalRead(9) ^ 1); //toggle heartbeat indicator.
+  //digitalWrite(9, digitalRead(9) ^ 1); //toggle heartbeat indicator.
 }
 
 void loop()
 {
   //TODO: bottom half.
 
-  if(timerTicks1 == 10)
+  if(timerTicks1 == 1)
   {
     //TODO: draw video frame.
     
