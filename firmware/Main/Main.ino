@@ -55,11 +55,17 @@ CRGBPalette16 gPal2;
 CRGBPalette16 gPal3;
 CRGBPalette16* gPalCurrent;
 
-//======== timer stuff
+//======== debounce stuff
 byte button1 = A0;
 byte button2 = A1;
 Debounce Button1(button1); // Button1 debounced, default 50ms delay.
 Debounce Button2(button2); // Button2 debounced, default 50ms delay.
+
+//======== timer stuff.
+Timer tBlower;
+Timer tVape;
+int smokeEvent;
+int vapeEvent;
 
 //======== control stuff
 byte en_blower = A2;
@@ -136,6 +142,9 @@ ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
 void loop()
 {
 
+  tBlower.update(); //update timer.
+  tVape.update(); //update timer.
+
   //TODO: read pin states.
   if(!Button1.read())
   {
@@ -172,6 +181,18 @@ void loop()
   if(!Button2.read())
   {
     //smoke mode button pushed.
+    smokeFlag ^= 1; //toggle smoke flag.
+    
+    if(smokeFlag)
+    {
+      smokeEvent = tBlower.oscillate(en_blower, 10000, HIGH);
+      vapeEvent = tVape.oscillate(en_vape, 10000, HIGH);
+    }
+    else
+    {
+      tBlower.stop(smokeEvent);
+      tVape.stop(vapeEvent);
+    }
   }
   
   //bottom half of ISR.
