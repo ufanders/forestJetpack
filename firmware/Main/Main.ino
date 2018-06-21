@@ -6,13 +6,13 @@
 #include <FastLED.h>
 
 #define CHIPSET     DOTSTAR
-#define DATA_PIN     16
-#define CLOCK_PIN     15
+#define DATA_PIN     10
+#define CLOCK_PIN     16
 #define COLOR_ORDER BGR
 #define SPI_SPEED     5
 #define NUM_LEDS    60
 
-#define BRIGHTNESS  200
+#define BRIGHTNESS  50
 #define FRAMES_PER_SECOND 60
 
 bool gReverseDirection = false;
@@ -55,21 +55,25 @@ CRGBPalette16 gPal2;
 CRGBPalette16 gPal3;
 CRGBPalette16* gPalCurrent;
 
+void doSomething(void* context);
+
 //======== debounce stuff
 byte button1 = A0;
 byte button2 = A1;
+bool button1Down = false;
+bool button2Down = false;
 Debounce Button1(button1); // Button1 debounced, default 50ms delay.
 Debounce Button2(button2); // Button2 debounced, default 50ms delay.
 
 //======== timer stuff.
-Timer tBlower;
-Timer tVape;
+//Timer tBlower;
+//Timer tVape;
 int smokeEvent;
 int vapeEvent;
 
 //======== control stuff
-byte en_blower = A2;
-byte en_vape = A3;
+byte en_blower = 15;
+byte en_vape = 14;
 byte colorMode = 0;
 byte smokeFlag = 0;
 uint32_t timerTicksBase, timerTicks1, timerTicks2;
@@ -103,13 +107,26 @@ void setup() {
 
   coolingValue = 55;
   sparkingValue = 120;
+  colorMode = 1;
+
+  CRGB colorInit;
+  colorInit = ColorFromPalette( gPal0, 0);
+  for(int i = 0; i < (NUM_LEDS*2); i++)
+  {
+    leds[i] = colorInit;
+  }
+  FastLED.show();
 
   //pinMode(9, OUTPUT); //heartbeat indicator.
   pinMode(button1, INPUT_PULLUP); // Watch for the PULLUP
   pinMode(button2, INPUT_PULLUP); // Watch for the PULLUP
+  digitalWrite(en_blower, 0);
+  digitalWrite(en_vape, 0);
   pinMode(en_blower, OUTPUT);
   pinMode(en_vape, OUTPUT);
-  
+
+  //int tickEvent = tBlower.every((1000/60), doSomething, (void*)2);
+
   // initialize timer1 
   noInterrupts();           // disable all interrupts
   TCCR1A = 0;
@@ -123,7 +140,9 @@ void setup() {
   interrupts();             // enable all interrupts
 }
 
+
 ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
+//void doSomething(void* context)
 {
   //top half of ISR.
   
@@ -139,16 +158,18 @@ ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
   //digitalWrite(9, digitalRead(9) ^ 1); //toggle heartbeat indicator.
 }
 
+ 
 void loop()
 {
 
-  tBlower.update(); //update timer.
-  tVape.update(); //update timer.
-
+  //tBlower.update(); //update timer.
+  //tVape.update(); //update timer.
+  
   //TODO: read pin states.
-  if(!Button1.read())
+  if(!Button1.read() && button1Down == false)
   {
     //LED mode button pushed.
+    button1Down = true;
     
     colorMode++;
     if(colorMode > 3) colorMode = 0;
@@ -175,29 +196,46 @@ void loop()
       sparkingValue = 120;
       break;
     }
-
   }
 
-  if(!Button2.read())
+  if(Button1.read())
+  {
+    button1Down = false;
+  }
+
+  if(!Button2.read() && button2Down == false)
   {
     //smoke mode button pushed.
+    button2Down = true;
+
     smokeFlag ^= 1; //toggle smoke flag.
-    
+
     if(smokeFlag)
     {
-      smokeEvent = tBlower.oscillate(en_blower, 10000, HIGH);
-      vapeEvent = tVape.oscillate(en_vape, 10000, HIGH);
+      //smokeEvent = tBlower.oscillate(en_blower, 10000, HIGH);
+      //vapeEvent = tBlower.oscillate(en_vape, 10000, HIGH);
+
+      digitalWrite(en_blower, 1);
+      digitalWrite(en_vape, 1);
     }
     else
     {
-      tBlower.stop(smokeEvent);
-      tVape.stop(vapeEvent);
+      //tBlower.stop(smokeEvent);
+      //tBlower.stop(vapeEvent);
+
+      digitalWrite(en_blower, 0);
+      digitalWrite(en_vape, 0);
     }
+  }
+
+  if(Button2.read())
+  {
+    button2Down = false;
   }
   
   //bottom half of ISR.
 
-  if((timerTicks1 == 1) && colorMode)
+  if((timerTicks1 >= 1) /*&& (colorMode > 0)*/)
   {
     //TODO: draw video frame.
     
@@ -307,7 +345,7 @@ void Fire2012WithPalette()
       switch(colorMode)
       {
         case 0: //all black.
-          color = ColorFromPalette( gPal0, colorindex);
+          color = ColorFromPalette( gPal0, 0);
         break;
 
         case 1: //fire.
@@ -334,4 +372,5 @@ void Fire2012WithPalette()
       leds[pixelnumber+NUM_LEDS] = color; //we hack in a copy of the first strip data into the second strip.
     }
 }
+
 
