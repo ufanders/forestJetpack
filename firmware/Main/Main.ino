@@ -48,6 +48,7 @@ CRGB leds[NUM_LEDS*2]; //we hack in another strip worth of data.
 
 byte coolingValue;
 byte sparkingValue;
+byte brightnessValue;
 
 CRGBPalette16 gPal0;
 CRGBPalette16 gPal1;
@@ -87,7 +88,8 @@ void setup() {
   
   //we hack in twice as many slots for LEDs given we have 2 strips connected in series.
   FastLED.addLeds<CHIPSET, DATA_PIN, CLOCK_PIN, COLOR_ORDER>(leds, (NUM_LEDS*2)).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness( BRIGHTNESS );
+  brightnessValue = BRIGHTNESS;
+  FastLED.setBrightness(brightnessValue);
 
   // This first palette is the basic 'black body radiation' colors,
   // which run from black to red to bright yellow to white.
@@ -98,7 +100,7 @@ void setup() {
   gPal1 = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::Yellow, CRGB::White);
   
   // Second, this palette is like the heat colors, but blue/aqua instead of red/yellow
-  gPal2 = CRGBPalette16( CRGB::Black, CRGB::Pink, CRGB::Aqua,  CRGB::White);
+  gPal2 = CRGBPalette16( CRGB::Black, CRGB::Purple, CRGB::Aqua,  CRGB::White);
   
   // Third, here's a simpler, three-step gradient, from black to red to white
   //   gPal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::White);
@@ -178,22 +180,30 @@ void loop()
     {
       case 0: //LEDs off.
       coolingValue = 55;
-      sparkingValue = 120;
+      sparkingValue = 192;
+      brightnessValue = 0;
+      FastLED.setBrightness(brightnessValue);
       break;
 
       case 1: //Fire.
       coolingValue = 55;
-      sparkingValue = 120;
+      sparkingValue = 100;
+      brightnessValue = 96;
+      FastLED.setBrightness(brightnessValue);
       break;
 
       case 2: //MDMA fire.
-      coolingValue = 35;
+      coolingValue = 55;
       sparkingValue = 160;
+      brightnessValue = 192;
+      FastLED.setBrightness(brightnessValue);
       break;
 
       case 3: //FREAK OUT
       coolingValue = 55;
-      sparkingValue = 120;
+      sparkingValue = 192;
+      brightnessValue = 255;
+      FastLED.setBrightness(brightnessValue);
       break;
     }
   }
@@ -352,7 +362,7 @@ void Fire2012WithPalette()
           color = ColorFromPalette( gPal1, colorindex);
         break;
 
-        case 2: //MDMA fire?
+        case 2: //MDMA fire.
           color = ColorFromPalette( gPal2, colorindex);
         break;
 
