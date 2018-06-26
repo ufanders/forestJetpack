@@ -67,10 +67,12 @@ Debounce Button1(button1); // Button1 debounced, default 50ms delay.
 Debounce Button2(button2); // Button2 debounced, default 50ms delay.
 
 //======== timer stuff.
+Timer t;
 //Timer tBlower;
 //Timer tVape;
 int smokeEvent;
 int vapeEvent;
+int tickEvent;
 
 //======== control stuff
 byte en_blower = 15;
@@ -127,7 +129,7 @@ void setup() {
   pinMode(en_blower, OUTPUT);
   pinMode(en_vape, OUTPUT);
 
-  //int tickEvent = tBlower.every((1000/60), doSomething, (void*)2);
+  //tickEvent = t.every((1000/60), doSomething, (void*)2);
 
   // initialize timer1 
   noInterrupts();           // disable all interrupts
@@ -164,7 +166,7 @@ ISR(TIMER1_COMPA_vect)          // timer compare interrupt service routine
 void loop()
 {
 
-  //tBlower.update(); //update timer.
+  t.update(); //update timer.
   //tVape.update(); //update timer.
   
   //TODO: read pin states.
@@ -183,6 +185,10 @@ void loop()
       sparkingValue = 192;
       brightnessValue = 0;
       FastLED.setBrightness(brightnessValue);
+
+      //also turn off smoke.
+      digitalWrite(en_blower, 0);
+      digitalWrite(en_vape, 0);
       break;
 
       case 1: //Fire.
@@ -222,16 +228,16 @@ void loop()
 
     if(smokeFlag)
     {
-      //smokeEvent = tBlower.oscillate(en_blower, 10000, HIGH);
-      //vapeEvent = tBlower.oscillate(en_vape, 10000, HIGH);
+      smokeEvent = t.oscillate(en_blower, 15000, HIGH);
+      vapeEvent = t.oscillate(en_vape, 15000, HIGH);
 
-      digitalWrite(en_blower, 1);
-      digitalWrite(en_vape, 1);
+      //digitalWrite(en_blower, 1);
+      //digitalWrite(en_vape, 1);
     }
     else
     {
-      //tBlower.stop(smokeEvent);
-      //tBlower.stop(vapeEvent);
+      t.stop(smokeEvent);
+      t.stop(vapeEvent);
 
       digitalWrite(en_blower, 0);
       digitalWrite(en_vape, 0);
